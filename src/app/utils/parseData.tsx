@@ -4,11 +4,11 @@ export const parseTeeTimeData = (text: string) => {
   );
 
   const pcNumbers = Array.from(text.matchAll(/(\d+)\s+PC\s*(\d+)/g)).map(
-    ([, bag, pc]) => ({ bag: Number(bag), pc: Number(pc) })
+    ([_, bag, pc]) => ({ bag: Number(bag), pc: Number(pc) })
   );
 
   const markedNumbers = new Set(
-    Array.from(text.matchAll(/(\d+)\s+(COC|MOC|PC)/g)).map(([bag]) =>
+    Array.from(text.matchAll(/(\d+)\s+(COC|MOC|PC)/g)).map(([_, bag]) =>
       Number(bag)
     )
   );
