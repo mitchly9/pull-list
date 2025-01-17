@@ -255,7 +255,7 @@ const App: React.FC = () => {
                     ([range, numbers]) => (
                       <p key={range + "range"}>
                         <strong className="text-blue-300">{range}:</strong>{" "}
-                        {numbers.map((num: number) => {
+                        {numbers.map((num: number, index: number) => {
                           const oldBagNumbersExist =
                             oldBagNumbersRef.current.size !== 0;
                           const isAdded = !oldBagNumbersRef.current.has(num);
@@ -275,7 +275,8 @@ const App: React.FC = () => {
                                   : "text-gray-200"
                               }
                             >
-                              {num}{" "}
+                              {num}
+                              {index !== numbers.length - 1 ? "," : ""}{" "}
                             </span>
                           );
                         })}
