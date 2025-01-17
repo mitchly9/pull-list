@@ -13,11 +13,8 @@ const App: React.FC = () => {
     const data = parseTeeTimeData(rawData);
     // Sort the numbers in each range
     Object.keys(data.ranges).forEach((key) => {
-      // Cast 'key' to the correct key type of 'ranges'
-      const rangeKey = key as keyof typeof data.ranges;
-      data.ranges[rangeKey].sort((a, b) => a - b);
+      data.ranges[key].sort((a, b) => a - b);
     });
-
     // Sort marked numbers and PC associations
     data.filteredMarkedNumbers.sort((a, b) => a - b);
     data.pcNumbers.sort((a, b) => a.bag - b.bag);
