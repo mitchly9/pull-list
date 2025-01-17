@@ -8,12 +8,12 @@ const App: React.FC = () => {
   const [organizedData, setOrganizedData] = useState<ReturnType<
     typeof parseTeeTimeData
   > | null>(null);
+  const [viewMode, setViewMode] = useState<"byNumber" | "byTime">("byNumber");
 
   const handleProcessData = () => {
     const data = parseTeeTimeData(rawData);
     // Sort the numbers in each range
     Object.keys(data.ranges).forEach((key) => {
-      // Cast 'key' to the correct key type of 'ranges'
       const rangeKey = key as keyof typeof data.ranges;
       data.ranges[rangeKey].sort((a, b) => a - b);
     });
@@ -21,6 +21,12 @@ const App: React.FC = () => {
     // Sort marked numbers and PC associations
     data.filteredMarkedNumbers.sort((a, b) => a - b);
     data.pcNumbers.sort((a, b) => a.bag - b.bag);
+
+    // Sort bagsByTimes by time
+    // Object.keys(data.bagsByTimes).forEach((time) => {
+    //   data.bagsByTimes[time].sort((a, b) => a - b);
+    // });
+
     setOrganizedData(data);
   };
 
@@ -47,53 +53,102 @@ const App: React.FC = () => {
 
         {organizedData && (
           <div className="mt-6">
-            <div className="space-y-4">
-              <div>
+            <div className="flex space-x-4 mb-4">
+              <button
+                className={`py-2 px-4 rounded ${
+                  viewMode === "byNumber"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                }`}
+                onClick={() => setViewMode("byNumber")}
+              >
+                View by Numbers
+              </button>
+              <button
+                className={`py-2 px-4 rounded ${
+                  viewMode === "byTime"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                }`}
+                onClick={() => setViewMode("byTime")}
+              >
+                View by Time
+              </button>
+            </div>
+
+            {viewMode === "byNumber" ? (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-xl font-semibold mb-2 text-blue-400">
+                    Bag Number Ranges
+                  </h2>
+                  {Object.entries(organizedData.ranges).map(
+                    ([range, numbers]) => (
+                      <p key={range}>
+                        <strong className="text-blue-300">{range}:</strong>{" "}
+                        {numbers.length > 0 ? numbers.join(", ") : "None"}
+                      </p>
+                    )
+                  )}
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-semibold mb-2 text-blue-400">
+                    Bag Number Associations with PC#
+                  </h2>
+                  {organizedData.pcNumbers.length > 0 ? (
+                    organizedData.pcNumbers.map(({ bag, pc }, idx) => (
+                      <p key={idx}>
+                        <strong className="text-blue-300">Bag#:</strong> {bag} →{" "}
+                        <strong>PC#:</strong> {pc}
+                      </p>
+                    ))
+                  ) : (
+                    <p>None</p>
+                  )}
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-semibold mb-2 text-blue-400">
+                    Riding in Cart or has Personal PC
+                  </h2>
+                  {organizedData.filteredMarkedNumbers.length > 0 ? (
+                    <p>{organizedData.filteredMarkedNumbers.join(", ")}</p>
+                  ) : (
+                    <p>None</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
                 <h2 className="text-xl font-semibold mb-2 text-blue-400">
-                  Bag Number Ranges
+                  Bags by Times
                 </h2>
-                {Object.entries(organizedData.ranges).map(
-                  ([range, numbers]) => (
-                    <p key={range}>
-                      <strong className="text-blue-300">{range}:</strong>{" "}
-                      {numbers.length > 0 ? numbers.join(", ") : "None"}
-                    </p>
+                {Object.entries(organizedData.timesWithBags).map(
+                  ([time, bags]) => (
+                    <div key={time}>
+                      {bags.bagNumbers.length > 0 ? (
+                        <div>
+                          <strong className="text-blue-300">
+                            {bags.time}:
+                          </strong>{" "}
+                          {bags.bagNumbers.join(", ")}
+                        </div>
+                      ) : (
+                        <></>
+                      )}
+                    </div>
                   )
                 )}
               </div>
-
-              <div>
-                <h2 className="text-xl font-semibold mb-2 text-blue-400">
-                  Bag Number Associations with PC#
-                </h2>
-                {organizedData.pcNumbers.length > 0 ? (
-                  organizedData.pcNumbers.map(({ bag, pc }, idx) => (
-                    <p key={idx}>
-                      <strong className="text-blue-300">Bag#:</strong> {bag} →{" "}
-                      <strong>PC#:</strong> {pc}
-                    </p>
-                  ))
-                ) : (
-                  <p>None</p>
-                )}
-              </div>
-
-              <div>
-                <h2 className="text-xl font-semibold mb-2 text-blue-400">
-                  Riding in Cart or has Personal PC
-                </h2>
-                {organizedData.filteredMarkedNumbers.length > 0 ? (
-                  <p>{organizedData.filteredMarkedNumbers.join(", ")}</p>
-                ) : (
-                  <p>None</p>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         )}
       </div>
     </div>
   );
+  // 12 15 26 39 5096 30 252  9
+  // 12 15 26 39 50 96 252
 };
 
 export default App;
