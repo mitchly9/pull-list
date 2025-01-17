@@ -1,5 +1,4 @@
 export const parseTeeTimeData = (text: string) => {
-  console.log("rub");
   // Extract unique bag numbers
   const bagNumbers = Array.from(
     new Set(text.match(/(?<=\S) (\d+)/g)?.map(Number) || [])
@@ -12,7 +11,7 @@ export const parseTeeTimeData = (text: string) => {
 
   // Extract marked numbers (COC, MOC, PC)
   const markedNumbers = new Set(
-    Array.from(text.matchAll(/(\d+)\s+(COC|MOC|PC)/g)).map(([bag]) =>
+    Array.from(text.matchAll(/(\d+)\s+(COC|MOC|PC)/g)).map(([, bag]) =>
       Number(bag)
     )
   );
@@ -55,8 +54,6 @@ export const parseTeeTimeData = (text: string) => {
     );
     timesWithBags.push({ time: currentTime, bagNumbers });
   }
-
-  console.log(timesWithBags);
 
   return { ranges, pcNumbers, filteredMarkedNumbers, timesWithBags };
 };
