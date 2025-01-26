@@ -1,196 +1,138 @@
 "use client";
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { parseTeeTimeData } from "./utils/parseData";
+import {
+  combineSortedBagNumbers,
+  combineTeeTimes,
+  combineCartBagNumbers,
+  combinePcNumbers,
+} from "./utils/combineFunctions";
+import {
+  useBagNumbers,
+  usePcNumbers,
+  useSortedBagNumbers,
+  useTeeTimes,
+  useCartBagNumbers,
+} from "./hooks/dataReferenceHooks";
 import "./App.css";
 
 const App: React.FC = () => {
-  const [rawData, setRawData] = useState("");
-  const [organizedData, setOrganizedData] = useState<ReturnType<
+  // Initialize hooks for re-rendering when needed
+  const [teeTimeInput, setTeeTimeInput] = useState("");
+  const [parsedData, setParsedData] = useState<ReturnType<
     typeof parseTeeTimeData
   > | null>(null);
+  const [viewMode, setViewMode] = useState<"byNumber" | "byTeeTime">(
+    "byNumber"
+  );
 
-  const oldBagNumbersRef = useRef<Set<number>>(new Set());
-  const newBagNumbersRef = useRef<Set<number>>(new Set());
+  // Create Refs
+  const { oldBagNumbersRef, newBagNumbersRef } = useBagNumbers();
+  const { oldTeeTimesRef, newTeeTimesRef, combinedTeeTimesRef } = useTeeTimes();
+  const { oldPcNumbersRef, newPcNumbersRef, combinedPcNumbersRef } =
+    usePcNumbers();
+  const {
+    oldSortedBagNumbersRef,
+    newSortedBagNumbersRef,
+    combinedSortedBagNumbersRef,
+  } = useSortedBagNumbers();
+  const {
+    newCartBagNumbersRef,
+    oldCartBagNumbersRef,
+    combinedCartBagNumbersRef,
+  } = useCartBagNumbers();
 
-  const oldRangesRef = useRef<Record<string, number[]>>({});
-  const newRangesRef = useRef<Record<string, number[]>>({});
-  const combinedRangesRef = useRef<Record<string, number[]>>({});
-
-  const oldTimesRef = useRef<{ time: string; bagNumbers: number[] }[]>([]);
-  const newTimesRef = useRef<{ time: string; bagNumbers: number[] }[]>([]);
-  const combinedTimesRef = useRef<{ time: string; bagNumbers: number[] }[]>([]);
-
-  const oldPcNumbersRef = useRef<{ bag: number; pc: number }[]>([]);
-  const newPcNumbersRef = useRef<{ bag: number; pc: number }[]>([]);
-  const combinedPcNumbersRef = useRef<{ bag: number; pc: number }[]>([]);
-
-  const oldFilteredMarkedNumbersRef = useRef<number[]>([]);
-  const newFilteredMarkedNumbersRef = useRef<number[]>([]);
-  const combinedFilteredMarkedNumbersRef = useRef<Set<number>>(new Set());
-
-  const [viewMode, setViewMode] = useState<"byNumber" | "byTime">("byNumber");
-
-  const handleProcessData = () => {
-    const data = parseTeeTimeData(rawData);
-
-    // Sort the numbers in each range
-    Object.keys(data.ranges).forEach((key) => {
-      const rangeKey = key as keyof typeof data.ranges;
-      data.ranges[rangeKey].sort((a, b) => a - b);
-    });
-
-    data.filteredMarkedNumbers.sort((a, b) => a - b);
-
-    data.timesWithBags.forEach((item) => {
-      item.bagNumbers.sort((a, b) => a - b); // Sort the numbers in ascending order
-    });
-
-    // Save the current value of newRanges
-
-    // Update the ref for immediate synchronous access
-    oldRangesRef.current = newRangesRef.current;
+  /**
+   * Stores the previous values to old, and sets the new values into new
+   * @param data - The dataset containing the new data for sortedBagNumbers,
+   *               teeTimeswithBags, pcNumbers, and cartBagNumbers
+   */
+  const updateOldAndNewRefs = (data: {
+    sortedBagNumbers: Record<string, number[]>;
+    teeTimesWithBags: { teeTime: string; bagNumbers: number[] }[];
+    pcNumbers: {
+      bag: number;
+      pc: number;
+    }[];
+    cartBagNumbers: number[];
+  }) => {
+    // Stores the previous values
+    oldSortedBagNumbersRef.current = newSortedBagNumbersRef.current;
     oldBagNumbersRef.current = newBagNumbersRef.current;
-    oldTimesRef.current = newTimesRef.current;
+    oldTeeTimesRef.current = newTeeTimesRef.current;
     oldPcNumbersRef.current = newPcNumbersRef.current;
-    oldFilteredMarkedNumbersRef.current = newFilteredMarkedNumbersRef.current;
+    oldCartBagNumbersRef.current = newCartBagNumbersRef.current;
 
-    // Update newRanges to the new value
-    newRangesRef.current = { ...data.ranges };
-    newTimesRef.current = [...data.timesWithBags];
+    // Stores the new values
+    newSortedBagNumbersRef.current = { ...data.sortedBagNumbers };
+    newTeeTimesRef.current = [...data.teeTimesWithBags];
     newPcNumbersRef.current = [...data.pcNumbers];
-    newFilteredMarkedNumbersRef.current = [...data.filteredMarkedNumbers];
-
-    // Update newBagNumbers with combined numbers from all ranges
+    newCartBagNumbersRef.current = [...data.cartBagNumbers];
     newBagNumbersRef.current = new Set([
-      ...data.ranges["1-72"],
-      ...data.ranges["73-144"],
-      ...data.ranges["145-216"],
-      ...data.ranges["217-252"],
-      ...data.ranges["253-324"],
-      ...data.ranges["325+"],
+      ...data.sortedBagNumbers["1-72"],
+      ...data.sortedBagNumbers["73-144"],
+      ...data.sortedBagNumbers["145-216"],
+      ...data.sortedBagNumbers["217-252"],
+      ...data.sortedBagNumbers["253-324"],
+      ...data.sortedBagNumbers["325+"],
     ]);
+  };
 
-    // Combine ranges using the current value of oldRanges
-    combinedRangesRef.current = (() => {
-      const combinedRanges: Record<
-        keyof typeof newRangesRef.current,
-        number[]
-      > = {}; // Specify exact key type for combinedRanges
-
-      // Iterate through each key in data.ranges
-      for (const key in data.ranges) {
-        const rangeKey = key as keyof typeof data.ranges;
-
-        // Combine the arrays for each range, remove duplicates, and sort the result
-        combinedRanges[rangeKey] = oldRangesRef.current[rangeKey]
-          ? [
-              ...new Set(
-                oldRangesRef.current[rangeKey].concat(data.ranges[rangeKey])
-              ),
-            ].sort((a, b) => a - b) // Sort in ascending order
-          : [...new Set(data.ranges[rangeKey])].sort((a, b) => a - b); // Sort in ascending order
-      }
-
-      return combinedRanges;
-    })();
-
-    combinedTimesRef.current = (() => {
-      const combinedTimes: { time: string; bagNumbers: number[] }[] = [];
-
-      // Iterate over each time and combine old and new times
-      data.timesWithBags.forEach(
-        (item: { time: string; bagNumbers: number[] }) => {
-          const oldTime = oldTimesRef.current.find(
-            (old) => old.time === item.time
-          );
-          const newTime = newTimesRef.current.find(
-            (newT) => newT.time === item.time
-          );
-
-          // Combine the bag numbers for each time, remove duplicates, and sort the result
-          combinedTimes.push({
-            time: item.time,
-            bagNumbers: [
-              ...new Set([
-                ...(oldTime ? oldTime.bagNumbers : []),
-                ...item.bagNumbers,
-                ...(newTime ? newTime.bagNumbers : []),
-              ]),
-            ].sort((a, b) => a - b),
-          });
-        }
-      );
-
-      return combinedTimes; // Return the combined times from the IIFE
-    })();
-
-    combinedFilteredMarkedNumbersRef.current = new Set(
-      [
-        ...oldFilteredMarkedNumbersRef.current,
-        ...newFilteredMarkedNumbersRef.current,
-      ].sort((a, b) => a - b) // Sort the array in ascending order
+  // Combines the old and new data into a single constant for all four refs
+  const combineData = () => {
+    combinedSortedBagNumbersRef.current = combineSortedBagNumbers(
+      oldSortedBagNumbersRef.current,
+      newSortedBagNumbersRef.current
     );
 
-    combinedPcNumbersRef.current = (() => {
-      const combinedPcNumbers: { bag: number; pc: number }[] = [];
+    combinedTeeTimesRef.current = combineTeeTimes(
+      oldTeeTimesRef.current,
+      newTeeTimesRef.current
+    );
 
-      // Iterate over newPcNumbersRef to combine with oldPcNumbersRef
-      newPcNumbersRef.current.forEach((newItem) => {
-        // Check if there's a corresponding item in oldPcNumbersRef
-        const oldItem = oldPcNumbersRef.current.find(
-          (old) => old.bag === newItem.bag
-        );
+    combinedCartBagNumbersRef.current = combineCartBagNumbers(
+      oldCartBagNumbersRef.current,
+      newCartBagNumbersRef.current
+    );
 
-        if (oldItem) {
-          // If there's an old item, combine the pc values (unique) and sort them
-          combinedPcNumbers.push({
-            bag: newItem.bag,
-            pc: Math.min(oldItem.pc, newItem.pc), // Example of combining PCs, modify logic as needed
-          });
-        } else {
-          // If no old item exists, just push the new item
-          combinedPcNumbers.push(newItem);
-        }
-      });
+    combinedPcNumbersRef.current = combinePcNumbers(
+      oldPcNumbersRef.current,
+      newPcNumbersRef.current
+    );
+  };
 
-      // Add any remaining items from oldPcNumbersRef that are not in newPcNumbersRef
-      oldPcNumbersRef.current.forEach((oldItem) => {
-        const isAlreadyAdded = newPcNumbersRef.current.some(
-          (newItem) => newItem.bag === oldItem.bag
-        );
-        if (!isAlreadyAdded) {
-          combinedPcNumbers.push(oldItem);
-        }
-      });
+  // Parses the data, sets the refs, and combines the data.
+  const handleProcessData = () => {
+    const data = parseTeeTimeData(teeTimeInput);
 
-      return combinedPcNumbers.sort((a, b) => a.bag - b.bag); // Sort by bag number for consistency
-    })();
+    updateOldAndNewRefs(data);
+    combineData();
 
-    setOrganizedData(data);
+    setParsedData(data);
   };
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 p-6">
       <div className="max-w-4xl mx-auto bg-gray-800 shadow-lg rounded-lg p-4">
         <h1 className="text-2xl font-bold mb-4 text-center">
-          Tee Time Organizer
+          Tee TeeTime Organizer
         </h1>
 
         <textarea
           className="w-full h-40 p-2 bg-gray-700 text-gray-200 border border-gray-600 rounded mb-4"
-          placeholder="Paste your tee times here..."
-          value={rawData}
-          onChange={(e) => setRawData(e.target.value)}
+          placeholder="Paste your tee TeeTimes here..."
+          value={teeTimeInput}
+          onChange={(e) => setTeeTimeInput(e.target.value)}
         />
 
         <button
           className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
           onClick={handleProcessData}
         >
-          Organize Tee Times
+          Organize Tee TeeTimes
         </button>
 
-        {organizedData && (
+        {parsedData && (
           <div className="mt-6">
             <div className="flex space-x-4 mb-4">
               <button
@@ -205,13 +147,13 @@ const App: React.FC = () => {
               </button>
               <button
                 className={`py-2 px-4 rounded ${
-                  viewMode === "byTime"
+                  viewMode === "byTeeTime"
                     ? "bg-blue-500 text-white"
                     : "bg-gray-700 text-gray-200 hover:bg-gray-600"
                 }`}
-                onClick={() => setViewMode("byTime")}
+                onClick={() => setViewMode("byTeeTime")}
               >
-                View by Time
+                View by TeeTime
               </button>
             </div>
 
@@ -219,39 +161,17 @@ const App: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <h2 className="text-xl font-semibold mb-2 text-blue-400">
-                    Bag Number Ranges{" "}
+                    Bag Number sortedBagNumbers{" "}
                     <span className="text-sm font-sans font-normal text-gray-300">
                       (Total Bags:{" "}
                       <span className="text-gray-200 font-medium">
                         {newBagNumbersRef.current.size}
                       </span>
                       )
-                      {/* {oldBagNumbersRef.current.size !== 0 ? (
-                        <span>
-                          , Added:{" "}
-                          <span className="text-gray-200 font-medium">
-                            {Math.max(
-                              newBagNumbersRef.current.size -
-                                oldBagNumbersRef.current.size,
-                              0
-                            )}
-                          </span>
-                          , Removed:{" "}
-                          <span className="text-gray-200 font-medium">
-                            {Math.max(
-                              oldBagNumbersRef.current.size -
-                                newBagNumbersRef.current.size,
-                              0
-                            )}
-                          </span>
-                        </span>
-                      ) : (
-                        <></>
-                      )} */}
                     </span>
                   </h2>
 
-                  {Object.entries(combinedRangesRef.current).map(
+                  {Object.entries(combinedSortedBagNumbersRef.current).map(
                     ([range, numbers]) => (
                       <p key={range + "range"}>
                         <strong className="text-blue-300">{range}:</strong>{" "}
@@ -325,9 +245,9 @@ const App: React.FC = () => {
                   <h2 className="text-xl font-semibold mb-2 text-blue-400">
                     Riding in Cart or has Personal PC
                   </h2>
-                  {combinedFilteredMarkedNumbersRef.current.size > 0 ? (
+                  {combinedCartBagNumbersRef.current.size > 0 ? (
                     <div>
-                      {Array.from(combinedFilteredMarkedNumbersRef.current).map(
+                      {Array.from(combinedCartBagNumbersRef.current).map(
                         (bagNumber, index) => {
                           const oldBagNumbersExist =
                             oldBagNumbersRef.current.size !== 0;
@@ -352,8 +272,7 @@ const App: React.FC = () => {
                               <span key={index}>
                                 {bagNumber}
                                 {index !==
-                                combinedFilteredMarkedNumbersRef.current.size -
-                                  1
+                                combinedCartBagNumbersRef.current.size - 1
                                   ? ","
                                   : ""}{" "}
                               </span>{" "}
@@ -370,15 +289,15 @@ const App: React.FC = () => {
             ) : (
               <div className="space-y-4">
                 <h2 className="text-xl font-semibold mb-2 text-blue-400">
-                  Bags by Times
+                  Bags by TeeTimes
                 </h2>
-                {Object.entries(combinedTimesRef.current).map(
-                  ([time, bags]) => (
-                    <div key={time}>
+                {Object.entries(combinedTeeTimesRef.current).map(
+                  ([teeTime, bags]) => (
+                    <div key={teeTime}>
                       {bags.bagNumbers.length > 0 ? (
                         <div>
                           <strong className="text-blue-300">
-                            {bags.time}:{" "}
+                            {bags.teeTime}:{" "}
                           </strong>
                           {bags.bagNumbers.map(
                             (bagNumber: number, index: number) => {

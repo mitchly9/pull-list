@@ -18,13 +18,12 @@ export const parseTeeTimeData = (text: string) => {
 
   // Filter marked numbers not associated with PC
   const pcAssociatedNumbers = new Set(pcNumbers.map(({ bag }) => bag));
-  const filteredMarkedNumbers = Array.from(
+  const cartBagNumbers = Array.from(
     new Set([...markedNumbers].filter((num) => !pcAssociatedNumbers.has(num)))
   );
 
-  console.log(filteredMarkedNumbers);
   // Create ranges
-  const ranges = {
+  const sortedBagNumbers = {
     "1-72": bagNumbers.filter((num) => num >= 1 && num <= 72),
     "73-144": bagNumbers.filter((num) => num >= 73 && num <= 144),
     "145-216": bagNumbers.filter((num) => num >= 145 && num <= 216),
@@ -33,10 +32,20 @@ export const parseTeeTimeData = (text: string) => {
     "325+": bagNumbers.filter((num) => num >= 325),
   };
 
+  // Sort the numbers in each range
+  Object.keys(sortedBagNumbers).forEach((key) => {
+    const bagRange = key as keyof typeof sortedBagNumbers;
+    sortedBagNumbers[bagRange].sort((a: number, b: number) => a - b);
+  });
+
+  // Sort the cart bag numbers
+  cartBagNumbers.sort((a: number, b: number) => a - b);
+
+  // Extract tee times with bags
   const timeRegex = /(\d{1,2}:\d{2} (?:AM|PM))/g;
   const matches = Array.from(text.matchAll(timeRegex));
 
-  const timesWithBags: { time: string; bagNumbers: number[] }[] = [];
+  const teeTimesWithBags: { teeTime: string; bagNumbers: number[] }[] = [];
 
   for (let i = 0; i < matches.length; i++) {
     const currentTime = matches[i][1]; // Current matched time
@@ -52,8 +61,11 @@ export const parseTeeTimeData = (text: string) => {
     const bagNumbers = Array.from(
       new Set(content.match(/(?<=\S) (\d+)/g)?.map(Number) || [])
     );
-    timesWithBags.push({ time: currentTime, bagNumbers });
+    // Sort the bag numbers for each tee time
+    bagNumbers.sort((a, b) => a - b);
+
+    teeTimesWithBags.push({ teeTime: currentTime, bagNumbers });
   }
 
-  return { ranges, pcNumbers, filteredMarkedNumbers, timesWithBags };
+  return { sortedBagNumbers, pcNumbers, cartBagNumbers, teeTimesWithBags };
 };
